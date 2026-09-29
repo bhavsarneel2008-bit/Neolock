@@ -1,0 +1,7 @@
+numpy
+tokenizers
+watchdog
+psutil
+pydantic
+fastapi
+uvicorn

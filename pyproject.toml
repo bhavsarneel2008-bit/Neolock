@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neolock"
+version = "0.1.0"
+description = "An on-device security layer for local AI agents on Snapdragon X Series Windows-on-ARM PCs."
+requires-python = ">=3.11"
+dependencies = [
+    "onnxruntime",
+    "pytest",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+tooling = ["torch", "transformers", "onnx", "qai-hub"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["neolock_core*", "npu_engine*", "attack_lab*", "benchmarks*"]
+exclude = ["tests*", "scripts*", "ui*", "docs*"]
+
+[project.scripts]
+neolock = "neolock_core.cli:main"
+neolock-mcp-proxy = "neolock_core.mcp_proxy:main"

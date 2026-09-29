@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Airlock Dashboard</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0f1115; color: #e2e8f0; margin: 0; padding: 20px; }
+  .grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+  .panel { background: #1e2128; border-radius: 8px; padding: 20px; border: 1px solid #2d3139; }
+  h2 { margin-top: 0; font-size: 16px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+  .stat { font-size: 32px; font-weight: bold; margin: 10px 0; }
+  .danger { color: #ef4444; }
+  .success { color: #10b981; }
+  .warning { color: #f59e0b; }
+  button { background: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px; }
+  button.danger-btn { background: #ef4444; }
+  .feed-item { background: #2d3139; padding: 15px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #3b82f6; }
+  .feed-item.blocked { border-left-color: #ef4444; }
+  .feed-item.ask { border-left-color: #f59e0b; }
+  .feed-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .feed-reason { color: #ef4444; font-size: 14px; margin-top: 8px; }
+  .feed-meta { font-size: 12px; color: #94a3b8; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div style="max-width: 1200px; margin: 0 auto;">
+  <h1 style="margin-bottom: 30px;">Airlock Local Dashboard</h1>
+  <div class="grid">
+    <div>
+      <div class="panel" style="margin-bottom: 20px;">
+        <h2>Risk Heartbeat</h2>
+        <div class="stat" id="risk-score">0.00</div>
+        <div style="margin-top: 15px;">
+          <button class="danger-btn" onclick="quarantine()">Quarantine</button>
+          <button onclick="rollback()">Rollback</button>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom: 20px;">
+        <h2>Privacy Proof</h2>
+        <div class="stat" id="net-conns">0</div>
+        <div style="color: #94a3b8; font-size: 14px;">Open Network Connections</div>
+      </div>
+      <div class="panel" style="margin-bottom: 20px;">
+        <h2>System Status</h2>
+        <div style="margin-bottom: 10px;">Ledger Validation: <span id="ledger-status" class="success">OK</span></div>
+        <div style="margin-bottom: 10px;">Capsule Network: <span id="network-status">UNLOCKED</span></div>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 10px;">Agent: <span id="agent-id"></span></div>
+      </div>
+    </div>
+    
+    <div class="panel">
+      <h2>Live Tool Call Feed</h2>
+      <div id="feed"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function update() {
+    try {
+        const res = await fetch('/api/state');
+        const data = await res.json();
+        
+        const score = document.getElementById('risk-score');
+        score.textContent = data.risk_score.toFixed(2);
+        score.className = 'stat ' + (data.risk_score >= 0.85 ? 'danger' : (data.risk_score > 0.4 ? 'warning' : 'success'));
+        
+        document.getElementById('net-conns').textContent = data.privacy_connections;
+        
+        const ledger = document.getElementById('ledger-status');
+        ledger.textContent = data.ledger_valid ? 'VERIFIED' : 'TAMPERED';
+        ledger.className = data.ledger_valid ? 'success' : 'danger';
+        
+        const netStat = document.getElementById('network-status');
+        netStat.textContent = data.capsule.network_locked ? 'LOCKED' : 'UNLOCKED';
+        netStat.className = data.capsule.network_locked ? 'danger' : 'success';
+        
+        document.getElementById('agent-id').textContent = data.capsule.agent_id;
+        
+        const feed = document.getElementById('feed');
+        feed.innerHTML = '';
+        data.feed.forEach(item => {
+            const div = document.createElement('div');
+            const cls = item.decision === 'BLOCK' || item.decision === 'QUARANTINE' ? 'blocked' : (item.decision === 'ASK' ? 'ask' : '');
+            div.className = `feed-item ${cls}`;
+            
+            let html = `<div class="feed-header">
+                <strong>${item.tool_name}</strong>
+                <span class="${cls || 'success'}">${item.decision}</span>
+            </div>
+            <div style="font-size: 14px; font-family: monospace; background: #1e2128; padding: 8px; border-radius: 4px;">
+                ${typeof item.tool_args === 'object' ? JSON.stringify(item.tool_args) : item.tool_args}
+            </div>`;
+            
+            if (item.decision !== 'ALLOW') {
+                html += `<div class="feed-reason">Why ${item.decision}: ${item.reason || 'Blocked by policy'}</div>`;
+            }
+            
+            html += `<div class="feed-meta">Rule: ${item.rule_id} | EP: ${item.execution_provider} | Latency: ${item.latency_ms}ms | Prov: ${item.provenance}</div>`;
+            
+            div.innerHTML = html;
+            feed.appendChild(div);
+        });
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function quarantine() {
+    await fetch('/api/quarantine', { method: 'POST' });
+    update();
+}
+
+async function rollback() {
+    if(confirm("Rollback active capsule workspace to last snapshot?")) {
+        await fetch('/api/rollback', { method: 'POST' });
+        update();
+    }
+}
+
+setInterval(update, 1000);
+update();
+</script>
+</body>
+</html>

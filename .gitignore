@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.neolock/
+attack_lab_workspace/
+benchmarks/
+attack_lab/results.json
+attack_lab/SCOREBOARD.md
+out.log
+*.egg-info/
+.env*
+build/
+dist/

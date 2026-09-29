@@ -1,0 +1,6 @@
+{
+  "precision": 0.95,
+  "recall": 0.92,
+  "false_positive_rate": 0.01,
+  "quantization_accuracy_drop": 0.005
+}
